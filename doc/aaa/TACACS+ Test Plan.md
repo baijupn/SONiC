@@ -32,7 +32,7 @@ Manual TACACS+ configuration can be done using config command in switch DUT.
 | **Command**                                                      | **Comment** |
 |------------------------------------------------------------------|-------------|
 | **Configuration commands**                                       |
-| config aaa authentication login { local / tacacs+ }              | Authentication login policy                |
+| config aaa authentication login { local / tacacs+ / tacacs+ local / local tacacs+ } | Authentication login policy |
 | config aaa authentication failthrough enable                     | Enable authentication fail-through         |
 | config tacacs timeout < 1 – 60 >                                 | TACACS+ server connection timeout          |
 | config tacacs authtype [ pap / chap ]                            | TACACS+ authentication service             |
@@ -164,6 +164,31 @@ Verify failthrough mechanism works. Failthrough is enabled by default. If failth
 * Verify TACACS+ user login via ssh fails. When local authentication fails, it will return error directly and not go to the TACACS+ authentication.
 * Enable authentication failthrough by config command.
 * Verify TACACS+ user login succeeds.
+
+
+### Strict TACACS+ outage Test
+#### Test objective
+Verify strict TACACS+ authentication fails closed for non-root local users.
+
+#### Test description
+
+* Configure `tacacs+` authentication with failthrough disabled and enabled.
+* Stop or otherwise make all configured TACACS+ servers unavailable.
+* Verify non-root local users cannot authenticate with valid or empty
+  passwords.
+* Verify root recovery requires a valid, non-empty local password.
+
+
+### Explicit TACACS+ local fallback Test
+#### Test objective
+Verify local fallback occurs only when explicitly configured.
+
+#### Test description
+
+* Configure `tacacs+ local` authentication.
+* Stop or otherwise make all configured TACACS+ servers unavailable.
+* Verify a non-root local user with a valid password can authenticate.
+* Verify an empty-password local user cannot authenticate.
 
 
 ### Source address Test

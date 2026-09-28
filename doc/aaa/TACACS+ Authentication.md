@@ -13,7 +13,12 @@ Pluggable authentication modules (PAM) are at the core of user authentication in
 - Support multiple TACACS+ server, and the priority of the server can be configured.
 - Support to set the order of local authentication and TACACS+ authentication.
 - Support fail_through mechanism for authentication. If a TACACS+ server authentication fails, the next TACACS+ server authentication will be performed.
-- Authentication for root is only specified in local.
+- Strict `tacacs+` authentication fails closed for non-root local users when
+  TACACS+ rejects authentication or no server is available.
+- Non-root local fallback after TACACS+ is available only when explicitly
+  configured with `tacacs+ local`.
+- Authentication for root is local-only and requires a valid, non-empty
+  password.
 
 ## Assumptions
 
@@ -131,19 +136,41 @@ auth    requisite                       pam_deny.so
 auth    required                        pam_permit.so
 ```
 
-- PAM configuration which TACACS+ authentication is prior to local authentication
+- Strict PAM configuration for TACACS+ authentication
 
 ```
-auth	[success=1 new_authtok_reqd=done default=ignore]	pam_succeed_if.so user = root debug
+auth	[success=2 default=ignore]	pam_succeed_if.so user = root
 
 auth	[success=done new_authtok_reqd=done default=ignore]	pam_tacplus.so server=10.65.254.222:49 secret=test123 login=pap timeout=3 try_first_pass
 
-auth	[success=1 default=ignore]	pam_unix.so nullok try_first_pass
+auth	requisite	pam_deny.so
+
+auth	[success=1 default=ignore]	pam_unix.so try_first_pass
 
 # here's the fallback if no module succeeds
 auth    requisite                       pam_deny.so
 auth    required                        pam_permit.so
 ```
+
+In strict `tacacs+` mode, TACACS+ rejection, timeout, routing failure, or
+server unavailability does not fall through to a non-root local account.
+The local module shown after the deny barrier is reachable only by the
+root-only jump.
+
+- PAM configuration for explicit TACACS+ followed by local authentication
+
+```
+auth	[success=done new_authtok_reqd=done default=ignore]	pam_tacplus.so server=10.65.254.222:49 secret=test123 login=pap timeout=3 try_first_pass
+
+auth	[success=1 default=ignore]	pam_unix.so try_first_pass
+
+# here's the fallback if no module succeeds
+auth    requisite                       pam_deny.so
+auth    required                        pam_permit.so
+```
+
+Configure this mode only when non-root local disaster-recovery access is
+required. Local recovery accounts must have valid, non-empty passwords.
 
 ### ConfigDB schema
 
@@ -190,7 +217,7 @@ timeout              = 1*2DIGIT
 AAA and TACACS+ command is implemented by using click module in sonic-utilities. The current support commands are as defined as follows:
 
 ```
-config aaa authentication login {local | tacacs+}
+config aaa authentication login {local | tacacs+ | tacacs+ local | local tacacs+}
 config aaa authentication failthrough enable/disable
 
 show aaa
